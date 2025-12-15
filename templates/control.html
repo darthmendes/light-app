@@ -1,0 +1,6 @@
+<!-- test.html -->
+<script>
+const ws = new WebSocket('ws://localhost:8765');
+ws.onopen = () => console.log('Connected');
+ws.onmessage = (event) => console.log('Colors:', JSON.parse(event.data));
+</script>

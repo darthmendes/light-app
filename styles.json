@@ -1,0 +1,25 @@
+[
+  {
+    "name": "Red Static",
+    "mode": "on",
+    "colors": [{"r":255,"g":0,"b":0}]
+  },
+  {
+    "name": "Blue Pulse",
+    "mode": "pulse",
+    "colors": [{"r":0,"g":0,"b":255}],
+    "speed": 7,
+    "intensity": 150
+  },
+  {
+    "name": "Rainbow Gradient",
+    "mode": "gradient",
+    "colors": [{"r":255,"g":0,"b":0}, {"r":0,"g":255,"b":0}, {"r":0,"g":0,"b":255}]
+  },
+  {
+    "name": "Thunderstorm!",
+    "mode": "thunderstorm",
+    "flash": {"r":255,"g":255,"b":255},
+    "colors": [{"r":0,"g":0,"b":30}]
+  }
+]

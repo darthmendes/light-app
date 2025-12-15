@@ -1,0 +1,717 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>🐉 D&D LED Controller</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+  <div class="container">
+    <header>
+      <h1>🐉 D&D LED Controller</h1>
+      <div style="position: absolute; top: 16px; right: 16px;">
+        <button id="theme-toggle" class="link" style="padding: 4px 8px; font-size: 14px;" onclick="toggleTheme()">
+            🌙 Dark Mode
+        </button>
+</div>
+    </header>
+
+    <!-- Station Selector -->
+    <div class="card">
+      <h2>1. Select Station(s)</h2>
+      <div class="station-layout">
+        <div class="station station-top-left" data-id="1" onclick="toggleStation(this)">
+          1<br><span class="station-label">Left</span>
+        </div>
+        <div class="station station-top-right" data-id="2" onclick="toggleStation(this)">
+          2<br><span class="station-label">Right</span>
+        </div>
+        <div class="station station-bottom-left" data-id="4" onclick="toggleStation(this)">
+          4<br><span class="station-label">Back L</span>
+        </div>
+        <div class="station station-bottom-right" data-id="3" onclick="toggleStation(this)">
+          3<br><span class="station-label">Back R</span>
+        </div>
+        <div class="center-btn" onclick="applyToAll()">
+          Apply to<br>All Stations
+        </div>
+      </div>
+      <div><strong>Selected:</strong> <span id="selected-display">None</span></div>
+    </div>
+
+    <!-- Presets -->
+    <div class="card">
+        <div class="card-header">
+        <h2 class="card-title">2. Quick Presets</h2>
+        <div>
+            <button class="link" onclick="exportPresets()">📥 Export</button>
+            <button class="link" onclick="document.getElementById('import-file').click()">📤 Import</button>
+            <button class="link" onclick="openCustomStyle()">Custom...</button>
+        </div>
+        </div>
+
+<!-- Hidden file input for import -->
+<input type="file" id="import-file" accept=".json" style="display:none;" onchange="importPresets(event)">
+      <div class="style-grid" id="preset-grid">
+        <!-- Presets loaded here -->
+      </div>
+      <div style="margin-top:12px; font-size:13px; color:#666;">
+        Hover over a preset to see ❌ delete button
+      </div>
+    </div>
+
+    <!-- Built-in Styles -->
+    <div class="card">
+      <h2>3. Quick Effects</h2>
+      <div class="style-grid">
+        <div class="style-item" data-style="off" onclick="selectQuickStyle(this)">Off</div>
+        <div class="style-item" data-style="red-pulse" onclick="selectQuickStyle(this)">Red Pulse</div>
+        <div class="style-item" data-style="blue-wave" onclick="selectQuickStyle(this)">Blue Wave</div>
+        <div class="style-item" data-style="purple-gradient" onclick="selectQuickStyle(this)">Purple Grad</div>
+        <div class="style-item" data-style="thunder" onclick="selectQuickStyle(this)">Thunderstorm</div>
+        <div class="style-item" data-style="green-circling" onclick="selectQuickStyle(this)">Green Dot</div>
+      </div>
+    </div>
+
+    <!-- Status -->
+    <div class="status" id="status">Select a station and choose a style!</div>
+  </div>
+
+  <!-- Custom Style Modal -->
+  <div class="modal" id="customStyleModal">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h2>Custom Style Builder</h2>
+        <button class="close-btn" onclick="closeCustomStyle()">×</button>
+      </div>
+
+      <!-- LED Range -->
+      <div class="card">
+        <h3>LED Range</h3>
+        <div class="slider-group">
+          <label>Start <span id="modal-start-val" class="value-display">0</span></label>
+          <input type="range" id="modal-ledStart" min="0" max="59" value="0" oninput="updateModalRangeDisplay()">
+        </div>
+        <div class="slider-group">
+          <label>End <span id="modal-end-val" class="value-display">59</span></label>
+          <input type="range" id="modal-ledEnd" min="0" max="59" value="59" oninput="updateModalRangeDisplay()">
+        </div>
+      </div>
+
+      <!-- Base Effect -->
+      <div class="card">
+        <h3>Base Effect</h3>
+        <label>
+          <select id="modal-base-mode" onchange="updateBaseModeUI()">
+            <option value="off">Off</option>
+            <option value="on">Solid Color</option>
+            <option value="gradient">Gradient</option>
+            <option value="thunderstorm">Thunderstorm</option>
+            <option value="fire">Fire</option>
+          </select>
+        </label>
+
+        <!-- Solid Color -->
+        <div id="modal-solid-section" class="card" style="margin-top:10px;">
+          <label>Solid Color</label>
+          <div class="color-picker">
+            <input type="range" id="modal-c1r" min="0" max="255" value="255" oninput="updateModalPreview('c1')">
+            <input type="range" id="modal-c1g" min="0" max="255" value="255" oninput="updateModalPreview('c1')">
+            <input type="range" id="modal-c1b" min="0" max="255" value="255" oninput="updateModalPreview('c1')">
+            <div class="color-preview" id="modal-preview-c1"></div>
+          </div>
+        </div>
+
+        <!-- Gradient -->
+        <div id="modal-gradient-section" class="card hidden" style="margin-top:10px;">
+          <label>Gradient Colors</label>
+          <div id="modal-palette-colors" class="palette-colors"></div>
+          <button type="button" class="link" onclick="addModalPaletteColor()">+ Add Color</button>
+        </div>
+
+        <!-- Thunderstorm -->
+        <div id="modal-thunderstorm-section" class="card hidden" style="margin-top:10px;">
+          <label>Ambient Background</label>
+          <select id="modal-bg-mode" onchange="updateThunderstormUI()">
+            <option value="solid">Solid Color</option>
+            <option value="gradient">Gradient</option>
+          </select>
+
+          <div id="modal-ambient-solid" class="card" style="margin-top:10px;">
+            <label>Ambient Color</label>
+            <div class="color-picker">
+              <input type="range" id="modal-ambr" min="0" max="255" value="0" oninput="updateModalPreview('amb')">
+              <input type="range" id="modal-ambg" min="0" max="255" value="0" oninput="updateModalPreview('amb')">
+              <input type="range" id="modal-ambb" min="0" max="255" value="30" oninput="updateModalPreview('amb')">
+              <div class="color-preview" id="modal-preview-amb"></div>
+            </div>
+          </div>
+
+          <div id="modal-ambient-gradient" class="card hidden" style="margin-top:10px;">
+            <label>Ambient Gradient</label>
+            <div id="modal-ambient-palette" class="palette-colors"></div>
+            <button type="button" class="link" onclick="addModalAmbientColor()">+ Add Color</button>
+          </div>
+
+          <div class="card" style="margin-top:10px;">
+            <label>Flash Color</label>
+            <div class="color-picker">
+              <input type="range" id="modal-flashr" min="0" max="255" value="255" oninput="updateModalPreview('flash')">
+              <input type="range" id="modal-flashg" min="0" max="255" value="255" oninput="updateModalPreview('flash')">
+              <input type="range" id="modal-flashb" min="0" max="255" value="255" oninput="updateModalPreview('flash')">
+              <div class="color-preview" id="modal-preview-flash"></div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Overlay -->
+      <div class="card">
+        <h3>Overlay Effect (Optional)</h3>
+        <label>
+          <select id="modal-overlay-mode">
+            <option value="">None</option>
+            <option value="pulse">Pulse</option>
+            <option value="wave">Wave</option>
+            <option value="circling">Circling Dot</option>
+            <option value="updown">Up & Down</option>
+          </select>
+        </label>
+        <div id="modal-overlay-color-section" class="card" style="margin-top:10px;">
+          <label>Overlay Color</label>
+          <div class="color-picker">
+            <input type="range" id="modal-or" min="0" max="255" value="255" oninput="updateModalPreview('overlay')">
+            <input type="range" id="modal-og" min="0" max="255" value="255" oninput="updateModalPreview('overlay')">
+            <input type="range" id="modal-ob" min="0" max="255" value="255" oninput="updateModalPreview('overlay')">
+            <div class="color-preview" id="modal-preview-overlay"></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Advanced Parameters -->
+      <div class="card">
+        <h3>Advanced Parameters</h3>
+        <div class="slider-group">
+          <label>Speed <span id="modal-speed-val" class="value-display">5</span></label>
+          <input type="range" id="modal-speed" min="1" max="10" value="5" oninput="updateModalVal('speed')">
+        </div>
+        <div class="slider-group">
+          <label>Intensity <span id="modal-intensity-val" class="value-display">128</span></label>
+          <input type="range" id="modal-intensity" min="0" max="255" value="128" oninput="updateModalVal('intensity')">
+        </div>
+        <div class="slider-group">
+          <label>Brightness <span id="modal-brightness-val" class="value-display">128</span></label>
+          <input type="range" id="modal-brightness" min="0" max="255" value="128" oninput="updateModalVal('brightness')">
+        </div>
+        <div style="display:flex; gap:12px; margin-top:12px;">
+          <div style="flex:1;">
+            <label>Direction</label>
+            <select id="modal-direction" style="width:100%; padding:8px;">
+              <option value="forward">Forward</option>
+              <option value="backward">Backward</option>
+            </select>
+          </div>
+          <div style="flex:1;">
+            <label>Size <span id="modal-size-val" class="value-display">1</span></label>
+            <input type="range" id="modal-size" min="1" max="20" value="1" oninput="updateModalVal('size')">
+          </div>
+        </div>
+      </div>
+
+      <!-- Action Buttons -->
+      <div style="display:flex; gap:12px; margin-top:20px;">
+        <button class="primary" style="flex:1;" onclick="applyCustomStyle()">✅ Apply Style</button>
+        <button class="link" style="flex:1;" onclick="saveCustomAsPreset()">💾 Save as Preset</button>
+      </div>
+    </div>
+  </div>
+    <script>
+    // State
+    let selectedStations = [];
+    let modalPaletteIndex = 0;
+    let modalAmbientIndex = 0;
+
+    // DOM
+    const statusEl = document.getElementById('status');
+    const selectedDisplay = document.getElementById('selected-display');
+    const presetGrid = document.getElementById('preset-grid');
+    const customModal = document.getElementById('customStyleModal');
+
+    // Built-in quick styles (for "Quick Effects" section ONLY)
+    const quickStyles = {
+        'off': { base: 'off' },
+        'red-pulse': { 
+            base: 'on', 
+            overlay: 'pulse', 
+            colors: [{r:255,g:0,b:0}], 
+            overlayColor: {r:255,g:0,b:0} 
+        },
+        'blue-wave': { 
+            base: 'on', 
+            overlay: 'wave', 
+            colors: [{r:0,g:0,b:255}], 
+            overlayColor: {r:0,g:0,b:255}
+        },
+        'purple-gradient': { 
+            base: 'gradient', 
+            colors: [{r:128,g:0,b:128}, {r:255,g:100,b:255}] 
+        },
+        'thunder': { 
+            base: 'thunderstorm', 
+            flash: {r:255,g:255,b:255}, 
+            colors: [{r:0,g:0,b:30}] 
+        },
+        'green-circling': { 
+            base: 'on', 
+            overlay: 'circling', 
+            colors: [{r:0,g:255,b:0}], 
+            overlayColor: {r:0,g:255,b:0}
+        },
+        'fire': { base: 'fire', colors: [{r:255,g:60,b:0}, {r:255,g:150,b:0}] } 
+        };
+
+    // ✅ DEFAULT PRESETS
+    const defaultPresets = {
+        "Tavern": { base: "on", colors: [{r:200,g:50,b:0}], start:0, end:59, intensity:180, brightness:150, speed:3 },
+        "Forest": { base: "gradient", colors: [{r:0,g:80,b:0},{r:34,g:139,b:34},{r:144,g:238,b:144}], start:0, end:59, brightness:140 },
+        "Mystic Portal": { base: "gradient", colors: [{r:75,g:0,b:130},{r:238,g:130,b:238}], overlay: "circling", overlayColor: {r:255,g:255,b:255}, start:0, end:59, speed:2, brightness:160, size:3 },
+        "Dragon's Breath": { base: "on", colors: [{r:255,g:30,b:0}], overlay: "pulse", overlayColor: {r:255,g:50,b:0}, start:0, end:59, intensity:220, brightness:180, speed:6 },
+        "Upside Down": { base: "thunderstorm", colors: [{r:0,g:100,b:200},{r:139,g:0,b:0}], flash: {r:255,g:255,b:255}, start:0, end:59, intensity:50, brightness:190, speed:4 },
+        "Hawkins Lab": { base: "on", colors: [{r:0,g:150,b:255}], overlay: "wave", overlayColor: {r:100,g:200,b:255}, start:0, end:59, intensity:180, brightness:160, speed:4, direction:"backward" },
+        "Celestial": { base: "gradient", colors: [{r:25,g:25,b:112},{r:70,g:130,b:180},{r:240,g:248,b:255}], overlay: "circling", overlayColor: {r:255,g:255,b:200}, start:0, end:59, speed:1, brightness:130, size:1 },
+        "Lava Dungeon": { base: "gradient", colors: [{r:139,g:0,b:0},{r:255,g:48,b:48},{r:255,g:165,b:0}], overlay: "pulse", overlayColor: {r:255,g:100,b:0}, start:0, end:59, intensity:120, brightness:170, speed:3 },
+        "Lava Flow": {base: "fire", colors: [{r: 139, g: 0, b: 0},{r: 255, g: 69, b: 0}],start: 0, end: 59, brightness: 190},
+        "Swamp": { base: "gradient", colors: [{r:85,g:107,b:47},{r:107,g:142,b:35},{r:0,g:100,b:0}], start:0, end:59, brightness:100, intensity:80 },
+        "Campfire": { base: "fire", colors: [{r: 200, g: 40, b: 0},{r: 255, g: 120, b: 0}],start: 0, end: 59, brightness: 180}
+    };
+
+    let presets = {};
+
+    // ✅ CORRECT INITIALIZATION
+    function init() {
+        initTheme(); 
+        updateModalRangeDisplay();
+        updateModalVal('speed');
+        updateModalVal('intensity');
+        updateModalVal('brightness');
+        updateModalVal('size');
+        ['c1', 'amb', 'flash', 'overlay'].forEach(id => updateModalPreview(id));
+        addModalPaletteColor({r:255,g:0,b:0});
+        addModalPaletteColor({r:0,g:0,b:255});
+        addModalAmbientColor({r:139,g:0,b:0});
+        addModalAmbientColor({r:0,g:100,b:200});
+        updateBaseModeUI();
+        updateThunderstormUI();
+
+        // ✅ LOAD OR INITIALIZE PRESETS
+        const saved = localStorage.getItem('ledPresets');
+        if (saved) {
+        try {
+            presets = JSON.parse(saved);
+        } catch (e) {
+            presets = defaultPresets; // fallback on corrupt data
+            localStorage.setItem('ledPresets', JSON.stringify(presets));
+        }
+        } else {
+        presets = defaultPresets;
+        localStorage.setItem('ledPresets', JSON.stringify(presets));
+        }
+
+        // ✅ RENDER PRESETS AFTER DATA IS READY
+        loadPresets();
+        setStatus("Ready! Select a station and choose a style.");
+    }
+
+    // ... [KEEP ALL YOUR EXISTING FUNCTIONS UNCHANGED: toggleStation, updateSelectedDisplay, etc.] ...
+
+    // ✅ PRESERVING ALL YOUR EXISTING FUNCTIONS
+    function toggleStation(el) {
+        const id = el.dataset.id;
+        const index = selectedStations.indexOf(id);
+        if (index === -1) {
+        selectedStations.push(id);
+        el.classList.add('selected');
+        } else {
+        selectedStations.splice(index, 1);
+        el.classList.remove('selected');
+        }
+        updateSelectedDisplay();
+    }
+
+    function updateSelectedDisplay() {
+        if (selectedStations.length === 0) {
+        selectedDisplay.textContent = 'None';
+        } else {
+        const labels = {
+            '1': 'Left',
+            '2': 'Right',
+            '3': 'Back R',
+            '4': 'Back L'
+        };
+        selectedDisplay.textContent = selectedStations.map(id => labels[id] || id).join(', ');
+        }
+    }
+
+    function applyToAll() {
+        selectedStations = ['1','2','3','4'];
+        document.querySelectorAll('.station').forEach(el => el.classList.add('selected'));
+        updateSelectedDisplay();
+    }
+
+    function openCustomStyle() {
+        if (selectedStations.length === 0) {
+        setStatus("⚠️ Please select at least one station first!", true);
+        return;
+        }
+        customModal.style.display = 'flex';
+    }
+
+    function closeCustomStyle() {
+        customModal.style.display = 'none';
+    }
+
+    function addModalPaletteColor(rgb = {r:128, g:128, b:128}) {
+        const idx = modalPaletteIndex++;
+        const div = document.createElement('div');
+        div.className = 'color-picker';
+        div.innerHTML = `
+        <input type="range" min="0" max="255" value="${rgb.r}" oninput="updateModalDynamicPreview('palette', ${idx})">
+        <input type="range" min="0" max="255" value="${rgb.g}" oninput="updateModalDynamicPreview('palette', ${idx})">
+        <input type="range" min="0" max="255" value="${rgb.b}" oninput="updateModalDynamicPreview('palette', ${idx})">
+        <div class="color-preview" id="modal-preview-palette-${idx}"></div>
+        <button type="button" class="danger" style="padding:2px 6px;font-size:12px;" onclick="this.parentElement.remove()">✕</button>
+        `;
+        document.getElementById('modal-palette-colors').appendChild(div);
+        updateModalDynamicPreview('palette', idx);
+    }
+
+    function addModalAmbientColor(rgb = {r:128, g:128, b:128}) {
+        const idx = modalAmbientIndex++;
+        const div = document.createElement('div');
+        div.className = 'color-picker';
+        div.innerHTML = `
+        <input type="range" min="0" max="255" value="${rgb.r}" oninput="updateModalDynamicPreview('ambient', ${idx})">
+        <input type="range" min="0" max="255" value="${rgb.g}" oninput="updateModalDynamicPreview('ambient', ${idx})">
+        <input type="range" min="0" max="255" value="${rgb.b}" oninput="updateModalDynamicPreview('ambient', ${idx})">
+        <div class="color-preview" id="modal-preview-ambient-${idx}"></div>
+        <button type="button" class="danger" style="padding:2px 6px;font-size:12px;" onclick="this.parentElement.remove()">✕</button>
+        `;
+        document.getElementById('modal-ambient-palette').appendChild(div);
+        updateModalDynamicPreview('ambient', idx);
+    }
+
+    function updateModalDynamicPreview(type, idx) {
+        const prefix = type === 'palette' ? 'modal-palette-colors' : 'modal-ambient-palette';
+        const previewId = `modal-preview-${type}-${idx}`;
+        const inputs = document.querySelectorAll(`#${prefix} .color-picker:nth-child(${idx+1}) input`);
+        if (inputs.length >= 3) {
+        const r = inputs[0].value, g = inputs[1].value, b = inputs[2].value;
+        document.getElementById(previewId).style.backgroundColor = `rgb(${r},${g},${b})`;
+        }
+    }
+
+    function updateModalPreview(id) {
+        const r = document.getElementById(`modal-${id}r`)?.value || 0;
+        const g = document.getElementById(`modal-${id}g`)?.value || 0;
+        const b = document.getElementById(`modal-${id}b`)?.value || 0;
+        const preview = document.getElementById(`modal-preview-${id}`);
+        if (preview) preview.style.backgroundColor = `rgb(${r},${g},${b})`;
+    }
+
+    function updateBaseModeUI() {
+        const mode = document.getElementById('modal-base-mode').value;
+        document.getElementById('modal-solid-section').classList.toggle('hidden', mode !== 'on' && mode !== 'off');
+        document.getElementById('modal-gradient-section').classList.toggle('hidden', mode !== 'gradient');
+        document.getElementById('modal-thunderstorm-section').classList.toggle('hidden', mode !== 'thunderstorm');
+    }
+
+    function updateThunderstormUI() {
+        const bgMode = document.getElementById('modal-bg-mode').value;
+        document.getElementById('modal-ambient-solid').classList.toggle('hidden', bgMode !== 'solid');
+        document.getElementById('modal-ambient-gradient').classList.toggle('hidden', bgMode !== 'gradient');
+    }
+
+    function updateModalRangeDisplay() {
+        let start = parseInt(document.getElementById('modal-ledStart').value);
+        let end = parseInt(document.getElementById('modal-ledEnd').value);
+        if (start > end) {
+        [start, end] = [end, start];
+        document.getElementById('modal-ledStart').value = start;
+        document.getElementById('modal-ledEnd').value = end;
+        }
+        document.getElementById('modal-start-val').textContent = start;
+        document.getElementById('modal-end-val').textContent = end;
+    }
+
+    function updateModalVal(id) {
+        document.getElementById(`modal-${id}-val`).textContent = document.getElementById(`modal-${id}`).value;
+    }
+
+    function applyCustomStyle() {
+        if (selectedStations.length === 0) {
+        setStatus("⚠️ Please select at least one station!", true);
+        return;
+        }
+        const style = buildCustomStyle();
+        sendStyle(style);
+        closeCustomStyle();
+    }
+
+    function buildCustomStyle() {
+        const baseMode = document.getElementById('modal-base-mode').value;
+        const overlayMode = document.getElementById('modal-overlay-mode').value;
+        const start = parseInt(document.getElementById('modal-ledStart').value);
+        const end = parseInt(document.getElementById('modal-ledEnd').value);
+        
+        const style = {
+        start, end,
+        speed: parseInt(document.getElementById('modal-speed').value),
+        intensity: parseInt(document.getElementById('modal-intensity').value),
+        brightness: parseInt(document.getElementById('modal-brightness').value),
+        direction: document.getElementById('modal-direction').value,
+        size: parseInt(document.getElementById('modal-size').value)
+        };
+
+        if (baseMode === 'thunderstorm') {
+        style.base = 'thunderstorm';
+        style.flash = {
+            r: parseInt(document.getElementById('modal-flashr').value),
+            g: parseInt(document.getElementById('modal-flashg').value),
+            b: parseInt(document.getElementById('modal-flashb').value)
+        };
+        
+        const bgMode = document.getElementById('modal-bg-mode').value;
+        let colors = [];
+        if (bgMode === 'gradient') {
+            const pickers = document.querySelectorAll('#modal-ambient-palette .color-picker');
+            pickers.forEach(div => {
+            const inputs = div.querySelectorAll('input[type="range"]');
+            if (inputs.length >= 3) {
+                colors.push({
+                r: parseInt(inputs[0].value) || 0,
+                g: parseInt(inputs[1].value) || 0,
+                b: parseInt(inputs[2].value) || 0
+                });
+            }
+            });
+            if (colors.length === 0) colors.push({r:0,g:0,b:30});
+        } else {
+            colors.push({
+            r: parseInt(document.getElementById('modal-ambr').value) || 0,
+            g: parseInt(document.getElementById('modal-ambg').value) || 0,
+            b: parseInt(document.getElementById('modal-ambb').value) || 0
+            });
+        }
+        style.colors = colors;
+        } else if (baseMode === 'gradient') {
+        let colors = [];
+        const pickers = document.querySelectorAll('#modal-palette-colors .color-picker');
+        pickers.forEach(div => {
+            const inputs = div.querySelectorAll('input[type="range"]');
+            if (inputs.length >= 3) {
+            colors.push({
+                r: parseInt(inputs[0].value) || 0,
+                g: parseInt(inputs[1].value) || 0,
+                b: parseInt(inputs[2].value) || 0
+            });
+            }
+        });
+        if (colors.length === 0) colors.push({r:255,g:255,b:255});
+        style.base = 'gradient';
+        style.colors = colors;
+        } else {
+        style.base = baseMode;
+        style.colors = [{
+            r: parseInt(document.getElementById('modal-c1r').value),
+            g: parseInt(document.getElementById('modal-c1g').value),
+            b: parseInt(document.getElementById('modal-c1b').value)
+        }];
+        }
+
+        if (overlayMode) {
+        style.overlay = overlayMode;
+        style.overlayColor = {
+            r: parseInt(document.getElementById('modal-or').value),
+            g: parseInt(document.getElementById('modal-og').value),
+            b: parseInt(document.getElementById('modal-ob').value)
+        };
+        }
+
+        return style;
+    }
+
+    function saveCustomAsPreset() {
+        const name = prompt("Enter preset name:");
+        if (!name || !name.trim()) return;
+        const style = buildCustomStyle();
+        presets[name.trim()] = style;
+        localStorage.setItem('ledPresets', JSON.stringify(presets));
+        loadPresets();
+        setStatus(`✅ Preset "${name}" saved!`);
+    }
+
+    // ✅ CRITICAL: This now uses the correct 'presets' object
+    function loadPresets() {
+        presetGrid.innerHTML = '';
+        Object.keys(presets).forEach(name => {
+        const div = document.createElement('div');
+        div.className = 'style-item';
+        div.textContent = name;
+        div.onclick = () => applyPreset(name);
+        div.innerHTML += `<div class="delete-preset" onclick="deletePreset(event, '${name}')">✕</div>`;
+        presetGrid.appendChild(div);
+        });
+    }
+
+    function applyPreset(name) {
+        if (selectedStations.length === 0) {
+        setStatus("⚠️ Please select at least one station first!", true);
+        return;
+        }
+        sendStyle(presets[name]);
+        setStatus(`✅ Applied preset: ${name}`);
+    }
+
+    function deletePreset(event, name) {
+        event.stopPropagation();
+        if (confirm(`Delete preset "${name}"?`)) {
+        delete presets[name];
+        localStorage.setItem('ledPresets', JSON.stringify(presets));
+        loadPresets();
+        setStatus(`🗑️ Preset "${name}" deleted.`);
+        }
+    }
+
+    function selectQuickStyle(el) {
+        const styleKey = el.dataset.style;
+        if (selectedStations.length === 0) {
+        setStatus("⚠️ Please select at least one station first!", true);
+        return;
+        }
+        if (styleKey in quickStyles) {
+        sendStyle(quickStyles[styleKey]);
+        }
+    }
+
+    async function sendStyle(style) {
+        setStatus("Applying style...");
+        try {
+        const response = await fetch('/style', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ stations: selectedStations, style })
+        });
+        const result = await response.json();
+        if (result.status === 'success') {
+            setStatus(`✅ Style applied to ${selectedStations.length} station(s)!`);
+        } else {
+            setStatus("⚠️ Some stations failed. Check console.", true);
+            console.error(result);
+        }
+        } catch (err) {
+        setStatus("❌ Failed: " + err.message, true);
+        console.error(err);
+        }
+    }
+
+    function setStatus(message, error = false) {
+        statusEl.textContent = message;
+        statusEl.className = 'status' + (error ? ' error' : '');
+    }
+    // ✅ EXPORT PRESETS
+    function exportPresets() {
+        if (Object.keys(presets).length === 0) {
+            setStatus("⚠️ No presets to export!", true);
+            return;
+        }
+        
+        const dataStr = JSON.stringify(presets, null, 2);
+        const dataBlob = new Blob([dataStr], { type: 'application/json' });
+        
+        // Create download link
+        const link = document.createElement('a');
+        link.href = URL.createObjectURL(dataBlob);
+        link.download = 'led-presets.json';
+        link.click();
+        URL.revokeObjectURL(link.href);
+        
+        setStatus("✅ Presets exported!");
+    }
+
+    // ✅ IMPORT PRESETS
+    function importPresets(event) {
+        const file = event.target.files[0];
+        if (!file) return;
+        
+        const reader = new FileReader();
+        reader.onload = function(e) {
+            try {
+            const imported = JSON.parse(e.target.result);
+            
+            // Validate: must be an object
+            if (typeof imported !== 'object' || imported === null) {
+                throw new Error("Invalid file format");
+            }
+            
+            // Ask user: Merge or Replace?
+            const choice = confirm(
+                "How to import presets?\n\n" +
+                "✅ OK = Merge with existing\n" +
+                "❌ Cancel = Replace all"
+            );
+            
+            if (choice) {
+                // MERGE: Keep existing, add new
+                presets = { ...presets, ...imported };
+            } else {
+                // REPLACE: Wipe existing
+                presets = imported;
+            }
+            
+            // Save to localStorage
+            localStorage.setItem('ledPresets', JSON.stringify(presets));
+            loadPresets();
+            setStatus(`✅ Presets imported! (${Object.keys(imported).length} loaded)`);
+            } catch (err) {
+            setStatus("❌ Invalid preset file: " + err.message, true);
+            console.error(err);
+            }
+            
+            // Reset file input
+            event.target.value = '';
+        };
+        reader.readAsText(file);
+    }
+    // ✅ DARK MODE TOGGLE
+    function setTheme(theme) {
+    document.documentElement.setAttribute('data-theme', theme);
+    localStorage.setItem('theme', theme);
+    updateThemeButtonText(theme);
+    }
+
+    function updateThemeButtonText(theme) {
+    const btn = document.getElementById('theme-toggle');
+    if (btn) {
+        btn.textContent = theme === 'dark' ? '☀️ Light Mode' : '🌙 Dark Mode';
+    }
+    }
+
+    function toggleTheme() {
+    const current = document.documentElement.getAttribute('data-theme') || 'light';
+    const newTheme = current === 'light' ? 'dark' : 'light';
+    setTheme(newTheme);
+    }
+
+    // Apply saved theme on load
+    function initTheme() {
+    const saved = localStorage.getItem('theme') || 'light';
+    setTheme(saved);
+    }
+
+    // Start
+    window.addEventListener('DOMContentLoaded', init);
+    </script>
+    <input type="file" id="import-file" accept=".json" style="display:none;" onchange="importPresets(event)">
+</body>
+</html>
