@@ -1,4 +1,4 @@
-# Light-App
+# Light-App (WIP)
 
 This is an app I made for fun because i needed some LED lights for my DnD sessions.
 
