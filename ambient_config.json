@@ -1,0 +1,12 @@
+{
+  "fps": 60,
+  "edge_thickness_percent": 0.08,
+  "edge_inset_percent": 0.1,
+  "smoothing_alpha": 0.35,
+  "color_gains": [1.0, 1.0, 1.0],
+  "websocket_host": "127.0.0.1",
+  "websocket_port": 8765,
+  "udp_enabled": false,
+  "udp_host": "192.168.4.1",
+  "udp_port": 4210
+}
